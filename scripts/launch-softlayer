@@ -420,6 +420,11 @@ def get_parser():
         help=('Specify a local directory where results of script output'
               ' artifacts are saved'))
     parser.add_argument(
+        '--sl-sshkey-id', required=False, type=str, dest='sl_sshkey_id',
+        default=None,
+        help=('Specify the id of the ssh key that already exists. use'
+              '`slcli sshkey list` to list all ssh keys.'))
+    parser.add_argument(
         '--script-artifacts-dir', type=str, dest='artifacts_dir',
         default=DEFAULT_LOCAL_ARTIFACT_DIR,
         help=('Specify a local directory where results of script output'
@@ -602,7 +607,8 @@ def error(message):
 def main():
     parser = get_parser()
     args = parser.parse_args()
-    if not os.path.isfile(args.pubkey_file):
+    
+    if not os.path.isfile(args.pubkey_file) and not args.sl_sshkey_id:
         error("--pubkey-file=%s: not a file\n" % args.pubkey_file)
     image_id = args.image_id
     client = SoftLayer.Client()
@@ -623,9 +629,13 @@ def main():
         main()
         sys.exit(1)  # just because we did not launch an instance.
 
-    keypair = import_keypair(client, args.pubkey_file)
+    if not args.sl_sshkey_id:
+        keypair = import_keypair(client, args.pubkey_file)
+        sl_sshkey_id = keypair['id']
+    else:
+        sl_sshkey_id = args.sl_sshkey_id
     inst = create_instance(
-        client, image_id, keyname=keypair['id'], hostname=None,
+        client, image_id, keyname=sl_sshkey_id, hostname=None,
         region=args.region,
         flavor=args.type,
         security_groups=secgroup, user_data_file=args.user_data_file)
